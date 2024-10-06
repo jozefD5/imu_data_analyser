@@ -109,11 +109,8 @@ int main(void)
   MX_I2C1_Init();
   /* USER CODE BEGIN 2 */
   debug_log_init(&huart2, LOG_LEVEL_INFO);
-  if(i2c_helper_init(&hi2c1) == HAL_OK) {
-	  debug_log_debug("I2C Init: OK");
-  } else {
-	  debug_log_debug("I2C Init: Failed");
-  }
+  data_processing_init(&hi2c1);
+
 
 
   /* USER CODE END 2 */
@@ -143,7 +140,7 @@ int main(void)
 
   /* USER CODE BEGIN RTOS_THREADS */
   /* add threads, ... */
-  dataProcessingTaskHandle = osThreadNew(dataProcessing, NULL, &dataProcessingTaskAttributes);
+  dataProcessingTaskHandle = osThreadNew(data_processing, NULL, &dataProcessingTaskAttributes);
 
   /* USER CODE END RTOS_THREADS */
 

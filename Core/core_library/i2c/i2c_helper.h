@@ -12,10 +12,19 @@
 extern "C" {
 #endif
 
-HAL_StatusTypeDef i2c_helper_init(I2C_HandleTypeDef *i2c);
-HAL_StatusTypeDef i2c_helper_write(uint16_t device_address, uint8_t *data, uint16_t size);
-HAL_StatusTypeDef i2c_helper_read(uint16_t device_address, uint8_t *data, uint16_t size);
-HAL_StatusTypeDef i2c_helper_write_read(uint16_t device_address,
+/**
+ * @brief I2C device, represents I2C peripheral.
+ */
+typedef struct {
+	I2C_HandleTypeDef *i2c;
+	uint8_t address;
+	uint32_t timeout;
+}i2c_device_type;
+
+HAL_StatusTypeDef i2c_helper_init(i2c_device_type *device);
+HAL_StatusTypeDef i2c_helper_write(i2c_device_type *device, uint8_t *data, uint16_t size);
+HAL_StatusTypeDef i2c_helper_read(i2c_device_type *device, uint8_t *data, uint16_t size);
+HAL_StatusTypeDef i2c_helper_write_read(i2c_device_type *device,
 		                          uint8_t *tx_data,
 								  uint16_t tx_size,
 								  uint8_t *rx_data,
