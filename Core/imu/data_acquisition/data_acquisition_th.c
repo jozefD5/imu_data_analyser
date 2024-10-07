@@ -16,7 +16,6 @@
 
 // Thread period, frequency control frequency.
 #define DATA_AQUASITION_FREQ_PERIOD        10U  // 10 ms (100 Hz).
-#define DATA_PROCESSING_PERIOD_SEC         (DATA_AQUASITION_FREQ_PERIOD / 1000.0f)
 
 // BMI I2C device parameters.
 #define BMI_I2C_ADDRESS          0x01
@@ -132,25 +131,24 @@ void data_aquisition(void *arg) {
     
     while(1) {
         if(bmi_ist_flag) {
-            // Read data.
-
-            // Assign data.
+            // Read and assign data.
             if( xSemaphoreTake( mtx,(TickType_t) 10) == pdTRUE) {
             	bmi_ist_flag = false;
 
             	rslt = bmi2_get_sensor_data(&sensor_data, &bmi);
             	if ((rslt == BMI2_OK) &&
-            		(sensor_data.status & BMI2_DRDY_ACC) &&
-            	    (sensor_data.status & BMI2_DRDY_GYR)) {
+            			(sensor_data.status & BMI2_DRDY_ACC) &&
+						(sensor_data.status & BMI2_DRDY_GYR)) {
 
-            		imu_data.pitch = atan2(imu_data.acc_y, sqrt(imu_data.acc_x^2 + imu_data.acc_z^2));
-            		imu_data.roll  = atan2(imu_data.acc_x, sqrt(imu_data.acc_y^2 + imu_data.acc_z^2));
+            		// Converting lsb to meter per second squared for 16 bit accelerometer at 2G range.
+            		imu_data.acc_x = lsb_to_mps2(sensor_data.acc.x, (float)2, bmi.resolution);
+            		imu_data.acc_y = lsb_to_mps2(sensor_data.acc.y, (float)2, bmi.resolution);
+            		imu_data.acc_z = lsb_to_mps2(sensor_data.acc.z, (float)2, bmi.resolution);
 
-            		// Apply complementary filter with time interval between readings.
-            		imu_data.yaw   += (imu_data.gyr_z + alpha * (imu_data.yaw_acc - imu_data.yaw)) * DATA_PROCESSING_PERIOD_SEC;
-            		imu_data.pitch += (imu_data.gyr_x + alpha * (imu_data.pitch_acc - imu_data.pitch)) * DATA_PROCESSING_PERIOD_SEC;
-					imu_data.roll  += (imu_data.gyr_y + alpha * (imu_data.roll_acc - imu_data.roll)) * DATA_PROCESSING_PERIOD_SEC;
-
+            		// Converting lsb to degree per second for 16 bit gyro at 2000dps range.
+            		imu_data.gyr_x = lsb_to_dps(sensor_data.gyr.x, (float)2000, bmi.resolution);
+            		imu_data.gyr_y = lsb_to_dps(sensor_data.gyr.y, (float)2000, bmi.resolution);
+            		imu_data.gyr_z = lsb_to_dps(sensor_data.gyr.z, (float)2000, bmi.resolution);
             	}
                 xSemaphoreGive(mtx);
             } else {
@@ -159,7 +157,7 @@ void data_aquisition(void *arg) {
             }
         } else {
             // // TODO.
-            // Fail-save routint.
+            // Fail-save routine.
         }
 
 		HAL_GPIO_TogglePin(heart_beat_led_GPIO_Port, heart_beat_led_Pin);
@@ -168,7 +166,7 @@ void data_aquisition(void *arg) {
 }
 
 /**
- * @brief Provade lates obtained data from IMU sensor.
+ * @brief Provide lates obtained data from IMU sensor.
  */
 HAL_StatusTypeDef data_aquisition_get_data(acc_gyr_data_type *data) {
     HAL_StatusTypeDef res = HAL_OK;

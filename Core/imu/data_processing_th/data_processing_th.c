@@ -14,6 +14,7 @@
 
 // Thread period, frequency control frequency.
 #define DATA_PROCESSING_FREQ_PERIOD        10U        // 10 ms (100 Hz).
+#define DATA_PROCESSING_PERIOD_SEC         (DATA_PROCESSING_FREQ_PERIOD / 1000.0f)
 #define COMPLEMENTARY_ALPHA                0.98f
 
 // Thread data.
@@ -24,44 +25,70 @@ const osThreadAttr_t dataProcessingTaskAttributes = {
     .priority = (osPriority_t) osPriorityNormal,
 };
 
+// Data protecting mutex;
+static SemaphoreHandle_t mtx;
+
 // IMU data readings.
 static acc_gyr_data_type imu_data = 0;
+
+
 
 /**
  * @brief Initialise required components required for threads' correct operation.
  *        Needs to be called before thread is started.
  */
 void data_processing_init(void) {
+	mtx = xSemaphoreCreateMutex();
+	if(mtx == NULL) {
+	    debug_log_error("Failed to create mutex for data processing!");
+	    return HAL_ERROR;
+	}
 }
 
 /**
  * @brief data processing thread.
  */
-void dataProcessing(void *arg) {
-
+void data_processing(void *arg) {
 	while(1) {
-
-		if(data_aquisition_get_data() == HAL_OK) {
+		if( xSemaphoreTake( mtx,(TickType_t) 10) == pdTRUE) {
 			if(data_aquisition_get_data(&imu_data) == HAL_OK) {
 
-				imu_data.yaw =   COMPLEMENTARY_ALPHA * (imu_data.yaw   + imu_data.gyr_x * dt) + (1 - COMPLEMENTARY_ALPHA) * pitch_acc;
-				imu_data.pitch = COMPLEMENTARY_ALPHA * (imu_data.pitch + imu_data.gyr_y * dt) + (1 - COMPLEMENTARY_ALPHA) * roll_acc;
-				imu_data.roll =  COMPLEMENTARY_ALPHA * (imu_data.roll  + imu_data.gyr_z * dt);
+				// Convert to angels.
+				imu_data.pitch = atan2(imu_data.acc_y, sqrt(imu_data.acc_x^2 + imu_data.acc_z^2));
+				imu_data.roll  = atan2(imu_data.acc_x, sqrt(imu_data.acc_y^2 + imu_data.acc_z^2));
 
-
+				// Apply complementary filter with time interval between readings.
+				imu_data.yaw   += (imu_data.gyr_z + alpha * (imu_data.yaw_acc - imu_data.yaw)) * DATA_PROCESSING_PERIOD_SEC;
+				imu_data.pitch += (imu_data.gyr_x + alpha * (imu_data.pitch_acc - imu_data.pitch)) * DATA_PROCESSING_PERIOD_SEC;
+				imu_data.roll  += (imu_data.gyr_y + alpha * (imu_data.roll_acc - imu_data.roll)) * DATA_PROCESSING_PERIOD_SEC;
 
 			} else {
 				// TODO.
-				// Fail safe.
+				// Fail safe routine.
 			}
+
+			xSemaphoreGive(mtx);
 		} else {
 			// TODO.
-			// Fail safe routine.
-		}
+            // Trigger fail-safe.
+	    }
 
-		HAL_GPIO_TogglePin(heart_beat_led_GPIO_Port, heart_beat_led_Pin);
 		osDelay(pdMS_TO_TICKS(DATA_PROCESSING_FREQ_PERIOD));
 	}
 }
 
+/**
+ * @brief Provide processed accelerometer and gyroscope data.
+ */
+HAL_StatusTypeDef data_processing_get_data(acc_gyr_data_type *data) {
+    HAL_StatusTypeDef res = HAL_OK;
 
+    if( xSemaphoreTake(mtx,(TickType_t) 10) == pdTRUE) {
+    	*data = *imu_data;
+        xSemaphoreGive(mtx);
+    } else {
+        return HAL_ERROR;
+    }
+
+    return res;
+}

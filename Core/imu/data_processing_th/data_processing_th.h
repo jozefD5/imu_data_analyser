@@ -6,6 +6,7 @@
  */
 #include "main.h"
 #include "cmsis_os.h"
+#include "imu/data_acquisition/data_acquisition_th.h"
 
 #ifndef IMU_DATA_PROCESSING_TH_
 #define IMU_DATA_PROCESSING_TH_
@@ -20,6 +21,8 @@ extern const osThreadAttr_t dataProcessingTaskAttributes;
 
 void data_processing_init(void);
 void data_processing(void *arg);
+HAL_StatusTypeDef data_processing_get_data(acc_gyr_data_type *data);
+
 
 #ifdef __cplusplus
 }
