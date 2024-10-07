@@ -6,9 +6,13 @@
  */
 #include <stdio.h>
 #include <stdbool.h>
+#include <math.h>
 #include "data_acquisition_th.h"
-#include <core_library/debug_log/debug_log.h>
-#include <core_library/i2c/i2c_helper.h>
+#include "core_library/debug_log/debug_log.h"
+#include "core_library/i2c/i2c_helper.h"
+#include "bmi270.h"
+#include "common.h"
+#include "coines.h"
 
 // Thread period, frequency control frequency.
 #define DATA_AQUASITION_FREQ_PERIOD        10U  // 10 ms (100 Hz).
@@ -33,6 +37,58 @@ static i2c_device_type bmi_i2c;
 
 // Interrupt flag, new data.
 static bool bmi_ist_flag = false;
+
+// Assign accel and gyro sensor to variable.
+static uint8_t sensor_list[2] = {BMI2_ACCEL, BMI2_GYRO};
+
+// Setup imu sensor.
+static imu_sensor_init() {
+    int8_t rslt;
+
+    struct bmi2_dev bmi;
+
+    struct bmi2_sens_data sensor_data = { { 0 } };
+
+    uint8_t indx = 1;
+    uint8_t board = 0;
+    struct bmi2_sens_config config;
+
+    // Set I2C interface.
+    rslt = bmi2_interface_init(&bmi, BMI2_I2C_INTF);
+    bmi2_error_codes_print_result(rslt);
+
+    // Initialize bmi270. 
+    rslt = bmi270_init(&bmi);
+    bmi2_error_codes_print_result(rslt);
+
+    if (rslt == BMI2_OK) {
+        debug_log_info("IMU init : OK");
+
+        rslt = bmi2_sensor_enable(sensor_list, 2, &bmi);
+        bmi2_error_codes_print_result(rslt);
+        get_board_info(&board);
+        coines_attach_interrupt(COINES_SHUTTLE_PIN_20, drdy_int_callback, COINES_PIN_INTERRUPT_FALLING_EDGE);
+
+        config.type = BMI2_ACCEL;
+
+        // Get the accel configurations. 
+        rslt = bmi2_get_sensor_config(&config, 1, &bmi);
+        bmi2_error_codes_print_result(rslt);
+
+    } else {
+        debug_log_info("IMU init : Error"); 
+    }
+}
+
+
+
+
+
+
+
+
+
+
 
 /**
  * @brief Interrupt service routine, should be triggered by IMU sensor 
