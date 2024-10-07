@@ -18,10 +18,27 @@ extern "C" {
 extern osThreadId_t dataAquisitionTaskHandle;
 extern const osThreadAttr_t dataAquisitionTaskAttributes;
 
+/**
+ * @brief Gyroscope and accelerometer readings.
+ */
+typedef struct {
+	float acc_x;
+	float acc_y;
+	float acc_z;
+
+	float gyr_x;
+	float gyr_y;
+	float gyr_z;
+
+	float yaw;
+	float pitch;
+	float roll;
+}acc_gyr_data_type;
+
 void data_bmi_isr(void);
 HAL_StatusTypeDef data_aquisition_int(I2C_HandleTypeDef *i2c);
 void data_aquisition(void *arg);
-HAL_StatusTypeDef data_aquisition_get_data(void);
+HAL_StatusTypeDef data_aquisition_get_data(acc_gyr_data_type *data);
 
 #ifdef __cplusplus
 }

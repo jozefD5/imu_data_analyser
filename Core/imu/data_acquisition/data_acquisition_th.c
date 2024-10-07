@@ -41,13 +41,17 @@ static bool bmi_ist_flag = false;
 // Assign accel and gyro sensor to variable.
 static uint8_t sensor_list[2] = {BMI2_ACCEL, BMI2_GYRO};
 
+// IMU data readings.
+static acc_gyr_data_type imu_data = 0;
+
+
 // Setup imu sensor.
-static imu_sensor_init() {
-    int8_t rslt;
+static void imu_sensor_init() {
+    int8_t rslt = 0;
 
     struct bmi2_dev bmi;
 
-    struct bmi2_sens_data sensor_data = { { 0 } };
+    struct bmi2_sens_data sensor_data = {{0}};
 
     uint8_t indx = 1;
     uint8_t board = 0;
@@ -57,37 +61,31 @@ static imu_sensor_init() {
     rslt = bmi2_interface_init(&bmi, BMI2_I2C_INTF);
     bmi2_error_codes_print_result(rslt);
 
-    // Initialize bmi270. 
+    // Initialise bmi270.
     rslt = bmi270_init(&bmi);
     bmi2_error_codes_print_result(rslt);
 
-    if (rslt == BMI2_OK) {
-        debug_log_info("IMU init : OK");
+    if (rslt != BMI2_OK) {
+    	debug_log_info("IMU init : Error");
+    }
 
-        rslt = bmi2_sensor_enable(sensor_list, 2, &bmi);
-        bmi2_error_codes_print_result(rslt);
-        get_board_info(&board);
-        coines_attach_interrupt(COINES_SHUTTLE_PIN_20, drdy_int_callback, COINES_PIN_INTERRUPT_FALLING_EDGE);
+    // Accel and gyro configuration settings.
+    rslt = set_accel_gyro_config(&bmi);
+    bmi2_error_codes_print_result(rslt);
 
-        config.type = BMI2_ACCEL;
+    get_board_info(&board);
 
-        // Get the accel configurations. 
-        rslt = bmi2_get_sensor_config(&config, 1, &bmi);
-        bmi2_error_codes_print_result(rslt);
+    coines_attach_interrupt(COINES_SHUTTLE_PIN_20, drdy_int_callback, COINES_PIN_INTERRUPT_FALLING_EDGE);
 
-    } else {
+    config.type = BMI2_ACCEL;
+
+    rslt = bmi2_get_sensor_config(&config, 1, &bmi);
+    bmi2_error_codes_print_result(rslt);
+
+    if (rslt != BMI2_OK) {
         debug_log_info("IMU init : Error"); 
     }
 }
-
-
-
-
-
-
-
-
-
 
 
 /**
@@ -121,12 +119,15 @@ HAL_StatusTypeDef data_aquisition_int(I2C_HandleTypeDef *i2c) {
         debug_log_error("Failed to create mutex for data aquasition!");
         return HAL_ERROR;
     }
+
+    imu_sensor_init();
 }
 
 /**
  * @brief Data aqualisition thread.
  */
 void data_aquisition(void *arg) {
+	int8_t rslt = 0;
     
     while(1) {
         if(bmi_ist_flag) {
@@ -134,8 +135,23 @@ void data_aquisition(void *arg) {
 
             // Assign data.
             if( xSemaphoreTake( mtx,(TickType_t) 10) == pdTRUE) {
+            	bmi_ist_flag = false;
 
+            	rslt = bmi2_get_sensor_data(&sensor_data, &bmi);
+            	if ((rslt == BMI2_OK) &&
+            		(sensor_data.status & BMI2_DRDY_ACC) &&
+            	    (sensor_data.status & BMI2_DRDY_GYR)) {
 
+            		// Converting lsb to meter per second squared for 16 bit accelerometer at 2G range.
+            		imu_data.acc_x = lsb_to_mps2(sensor_data.acc.x, (float)2, bmi.resolution);
+            		imu_data.acc_y = lsb_to_mps2(sensor_data.acc.y, (float)2, bmi.resolution);
+            		imu_data.acc_z = lsb_to_mps2(sensor_data.acc.z, (float)2, bmi.resolution);
+
+            		// Converting lsb to degree per second for 16 bit gyro at 2000dps range.
+            		imu_data.gyr_x = lsb_to_dps(sensor_data.gyr.x, (float)2000, bmi.resolution);
+            		imu_data.gyr_y = lsb_to_dps(sensor_data.gyr.y, (float)2000, bmi.resolution);
+            		imu_data.gyr_z = lsb_to_dps(sensor_data.gyr.z, (float)2000, bmi.resolution);
+            	}
                 xSemaphoreGive(mtx);
             } else {
                 // TODO.
@@ -154,12 +170,11 @@ void data_aquisition(void *arg) {
 /**
  * @brief Provade lates obtained data from IMU sensor.
  */
-HAL_StatusTypeDef data_aquisition_get_data(void) {
+HAL_StatusTypeDef data_aquisition_get_data(acc_gyr_data_type *data) {
     HAL_StatusTypeDef res = HAL_OK;
 
     if( xSemaphoreTake(mtx,(TickType_t) 10) == pdTRUE) {
-
-
+    	*data = *imu_data;
         xSemaphoreGive(mtx);
     } else {
         return HAL_ERROR;
