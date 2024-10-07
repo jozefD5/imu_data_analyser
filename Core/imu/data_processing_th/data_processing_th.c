@@ -10,12 +10,10 @@
 #include <core_library/i2c/i2c_helper.h>
 //#include <BMI270_SensorAPI/bmi270.h>
 //#include <BMI270_SensorAPI/bmi270_examples/common/common.h>
+#include "imu/data_acquisition/data_acquisition_th.h"
 
-
-// BMI I2C device parameters.
-#define BMI_I2C_ADDRESS          0x01
-#define BMI_I2C_MAX_TIMEOUT      100
-#define BMI_INTERRUPT_PIN
+// Thread period, frequency control frequency.
+#define DATA_PROCESSING_FREQ_PERIOD        10U  // 10 ms (100 Hz).
 
 // Thread data.
 osThreadId_t dataProcessingTaskHandle;
@@ -40,8 +38,15 @@ void dataProcessing(void *arg) {
 
 	while(1) {
 
+		if(data_aquisition_get_data() == HAL_OK) {
+
+		} else {
+			// TODO.
+			// Failsafe routine.
+		}
+
 		HAL_GPIO_TogglePin(heart_beat_led_GPIO_Port, heart_beat_led_Pin);
-		osDelay(pdMS_TO_TICKS(500));
+		osDelay(pdMS_TO_TICKS(DATA_PROCESSING_FREQ_PERIOD));
 	}
 }
 

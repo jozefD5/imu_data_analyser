@@ -82,10 +82,11 @@ void data_aquisition(void *arg) {
 
                 xSemaphoreGive(mtx);
             } else {
+                // TODO.
                 // Trigger fail-safe.
             }
         } else {
-            // TODO, add
+            // // TODO.
             // Fail-save routint.
         }
 
