@@ -25,7 +25,7 @@ const osThreadAttr_t dataProcessingTaskAttributes = {
     .priority = (osPriority_t) osPriorityNormal,
 };
 
-// Data protecting mutex;
+// Data protecting mutex.
 static SemaphoreHandle_t mtx;
 
 // IMU data readings.
@@ -58,19 +58,19 @@ void data_processing(void *arg) {
 				imu_data.roll  = atan2(imu_data.acc_x, sqrt(imu_data.acc_y^2 + imu_data.acc_z^2));
 
 				// Apply complementary filter with time interval between readings.
-				imu_data.yaw   += (imu_data.gyr_z + alpha * (imu_data.yaw_acc - imu_data.yaw)) * DATA_PROCESSING_PERIOD_SEC;
-				imu_data.pitch += (imu_data.gyr_x + alpha * (imu_data.pitch_acc - imu_data.pitch)) * DATA_PROCESSING_PERIOD_SEC;
-				imu_data.roll  += (imu_data.gyr_y + alpha * (imu_data.roll_acc - imu_data.roll)) * DATA_PROCESSING_PERIOD_SEC;
+				imu_data.yaw   += (imu_data.gyr_z + COMPLEMENTARY_ALPHA * (imu_data.yaw_acc - imu_data.yaw)) * DATA_PROCESSING_PERIOD_SEC;
+				imu_data.pitch += (imu_data.gyr_x + COMPLEMENTARY_ALPHA * (imu_data.pitch_acc - imu_data.pitch)) * DATA_PROCESSING_PERIOD_SEC;
+				imu_data.roll  += (imu_data.gyr_y + COMPLEMENTARY_ALPHA * (imu_data.roll_acc - imu_data.roll)) * DATA_PROCESSING_PERIOD_SEC;
 
 			} else {
-				// TODO.
-				// Fail safe routine.
+				// TODO. Fail safe routine.
+				debug_log_error("Failed to data processing!");
 			}
 
 			xSemaphoreGive(mtx);
 		} else {
-			// TODO.
-            // Trigger fail-safe.
+			// TODO. Trigger fail-safe.
+			debug_log_error("Failed to data processing!");
 	    }
 
 		osDelay(pdMS_TO_TICKS(DATA_PROCESSING_FREQ_PERIOD));

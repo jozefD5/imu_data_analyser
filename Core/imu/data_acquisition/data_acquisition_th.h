@@ -33,6 +33,8 @@ typedef struct {
 	float yaw;
 	float pitch;
 	float roll;
+
+
 }acc_gyr_data_type;
 
 void data_bmi_isr(void);

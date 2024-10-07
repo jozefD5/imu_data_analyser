@@ -29,7 +29,7 @@ const osThreadAttr_t dataAquisitionTaskAttributes = {
     .priority = (osPriority_t) osPriorityNormal,
 };
 
-// Data protecting mutex;
+// Data protecting mutex.
 static SemaphoreHandle_t mtx;
 
 // I2C device.
@@ -41,12 +41,15 @@ static bool bmi_ist_flag = false;
 // IMU data readings.
 static acc_gyr_data_type imu_data = 0;
 
-
+// Sensor data.
+static struct bmi2_sens_data sensor_data = {{0}};
+static struct bmi2_dev bmi;
 
 
 
 // Setup imu sensor.
-static void imu_sensor_init() {
+static HAL_StatusTypeDef imu_sensor_init() {
+	HAL_StatusTypeDef res = HAL_OK;
     int8_t rslt = 0;
 
     struct bmi2_dev bmi;
@@ -67,6 +70,7 @@ static void imu_sensor_init() {
 
     if (rslt != BMI2_OK) {
     	debug_log_info("IMU init : Error");
+    	return HAL_ERROR;
     }
 
     // Accel and gyro configuration settings.
@@ -75,8 +79,6 @@ static void imu_sensor_init() {
 
     get_board_info(&board);
 
-    coines_attach_interrupt(COINES_SHUTTLE_PIN_20, drdy_int_callback, COINES_PIN_INTERRUPT_FALLING_EDGE);
-
     config.type = BMI2_ACCEL;
 
     rslt = bmi2_get_sensor_config(&config, 1, &bmi);
@@ -84,7 +86,10 @@ static void imu_sensor_init() {
 
     if (rslt != BMI2_OK) {
         debug_log_info("IMU init : Error"); 
+        return HAL_ERROR;
     }
+
+    return res;
 }
 
 
@@ -120,7 +125,8 @@ HAL_StatusTypeDef data_aquisition_int(I2C_HandleTypeDef *i2c) {
         return HAL_ERROR;
     }
 
-    imu_sensor_init();
+    res = imu_sensor_init();
+    return res;
 }
 
 /**
@@ -152,8 +158,8 @@ void data_aquisition(void *arg) {
             	}
                 xSemaphoreGive(mtx);
             } else {
-                // TODO.
-                // Trigger fail-safe.
+            	debug_log_error("Failed to acquire IMU data");
+                // TODO Trigger fail-safe.
             }
         } else {
             // // TODO.
