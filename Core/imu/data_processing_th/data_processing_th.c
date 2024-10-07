@@ -13,9 +13,15 @@
 #include "imu/data_acquisition/data_acquisition_th.h"
 
 // Thread period, frequency control frequency.
-#define DATA_PROCESSING_FREQ_PERIOD        10U        // 10 ms (100 Hz).
+#define DATA_PROCESSING_FREQ_PERIOD        10U
 #define DATA_PROCESSING_PERIOD_SEC         (DATA_PROCESSING_FREQ_PERIOD / 1000.0f)
-#define COMPLEMENTARY_ALPHA                0.98f
+
+#define GYRO_SENSITIVITY 1.0          // Adjust sensitivity as needed
+#define ACCEL_SENSITIVITY 1.0         // Adjust sensitivity as needed
+#define KF_ALPHA 0.98                 // Filter alpha (adjust for desired balance)
+#define M_PI    3.14
+
+
 
 // Thread data.
 osThreadId_t dataProcessingTaskHandle;
@@ -32,17 +38,50 @@ static SemaphoreHandle_t mtx;
 static acc_gyr_data_type imu_data = 0;
 
 
+static float calculate_pitch_accel(acc_gyr_data_type *data) {
+    return atan2(data->acc_y, sqrt(data->acc_x*data->acc_x + data->acc_z*data->acc_z)) * 180.0 / M_PI;
+}
+
+static float calculate_roll_accel(acc_gyr_data_type *data) {
+    return atan2(data->acc_x, sqrt(data->acc_y*data->acc_y + data->acc_z*data->acc_z)) * 180.0 / M_PI;
+}
+
+static void update_pitch_roll(acc_gyr_data_type *data) {
+    float pitch_accel = calculate_pitch_accel(data);
+    float roll_accel = calculate_roll_accel(data);
+
+    data->pitch = data->pitch + (data->gyr_x * GYRO_SENSITIVITY * DATA_PROCESSING_PERIOD_SEC) + KF_ALPHA * (pitch_accel - data->pitch);
+    data->roll  = data->roll + (data->gyr_y * GYRO_SENSITIVITY * DATA_PROCESSING_PERIOD_SEC) + KF_ALPHA * (roll_accel - data->roll);
+}
+
+void update_yaw(acc_gyr_data_type *data) {
+    data->yaw += data->gyr_z * GYRO_SENSITIVITY * DATA_PROCESSING_PERIOD_SEC;
+    if (data->yaw > 180.0) {
+    	data->yaw -= 360.0;
+    } else if (data->yaw < -180.0) {
+    	data->yaw += 360.0;
+    }
+}
+
+
+
+
+
 
 /**
  * @brief Initialise required components required for threads' correct operation.
  *        Needs to be called before thread is started.
  */
-void data_processing_init(void) {
+HAL_StatusTypeDef data_processing_init(void) {
+	HAL_StatusTypeDef res = HAL_OK;
+
 	mtx = xSemaphoreCreateMutex();
 	if(mtx == NULL) {
 	    debug_log_error("Failed to create mutex for data processing!");
 	    return HAL_ERROR;
 	}
+
+	return res;
 }
 
 /**
@@ -53,14 +92,11 @@ void data_processing(void *arg) {
 		if( xSemaphoreTake( mtx,(TickType_t) 10) == pdTRUE) {
 			if(data_aquisition_get_data(&imu_data) == HAL_OK) {
 
-				// Convert to angels.
-				imu_data.pitch = atan2(imu_data.acc_y, sqrt(imu_data.acc_x^2 + imu_data.acc_z^2));
-				imu_data.roll  = atan2(imu_data.acc_x, sqrt(imu_data.acc_y^2 + imu_data.acc_z^2));
+				// Update pitch and roll using complementary filter.
+				update_pitch_roll(&imu_data);
 
-				// Apply complementary filter with time interval between readings.
-				imu_data.yaw   += (imu_data.gyr_z + COMPLEMENTARY_ALPHA * (imu_data.yaw_acc - imu_data.yaw)) * DATA_PROCESSING_PERIOD_SEC;
-				imu_data.pitch += (imu_data.gyr_x + COMPLEMENTARY_ALPHA * (imu_data.pitch_acc - imu_data.pitch)) * DATA_PROCESSING_PERIOD_SEC;
-				imu_data.roll  += (imu_data.gyr_y + COMPLEMENTARY_ALPHA * (imu_data.roll_acc - imu_data.roll)) * DATA_PROCESSING_PERIOD_SEC;
+				// Update yaw.
+				update_yaw(&imu_data);
 
 			} else {
 				// TODO. Fail safe routine.

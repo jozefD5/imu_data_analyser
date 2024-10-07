@@ -19,7 +19,7 @@ extern "C" {
 extern osThreadId_t dataProcessingTaskHandle;
 extern const osThreadAttr_t dataProcessingTaskAttributes;
 
-void data_processing_init(void);
+HAL_StatusTypeDef data_processing_init(void);
 void data_processing(void *arg);
 HAL_StatusTypeDef data_processing_get_data(acc_gyr_data_type *data);
 
