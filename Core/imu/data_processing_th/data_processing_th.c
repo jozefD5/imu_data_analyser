@@ -26,46 +26,17 @@ const osThreadAttr_t dataProcessingTaskAttributes = {
 };
 
 
-// I2C device.
-static i2c_device_type bmi_i2c;
-
-// Interrupt flag, new data.
-static uint8_t bmi_ist_flag = 0;
-
-
 /**
  * @brief Initialise required components required for threads' correct operation.
  *        Needs to be called before thread is started.
  */
-void data_processing_init(I2C_HandleTypeDef *i2c) {
-	// Configure.
-	bmi_i2c.i2c = i2c;
-	bmi_i2c.address = BMI_I2C_ADDRESS;
-	bmi_i2c.timeout = BMI_I2C_MAX_TIMEOUT;
-
-	if(i2c_helper_init(&bmi_i2c) == HAL_OK) {
-		debug_log_debug("I2C BMI Init: OK");
-	} else {
-		debug_log_debug("I2C BMI Init: Failed");
-	}
+void data_processing_init(void) {
 }
-
-
-void data_bmi_isr(void) {
-	bmi_ist_flag = 1;
-}
-
-
-
 
 /**
  * @brief data processing thread.
  */
 void dataProcessing(void *arg) {
-
-
-
-
 
 	while(1) {
 

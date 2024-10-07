@@ -7,8 +7,8 @@
 #include "main.h"
 #include "cmsis_os.h"
 
-#ifndef IMU_DATA_PROCESSING_TH_DATA_PROCESSING_TH_H_
-#define IMU_DATA_PROCESSING_TH_DATA_PROCESSING_TH_H_
+#ifndef IMU_DATA_PROCESSING_TH_
+#define IMU_DATA_PROCESSING_TH_
 
 #ifdef __cplusplus
 extern "C" {
@@ -18,14 +18,10 @@ extern "C" {
 extern osThreadId_t dataProcessingTaskHandle;
 extern const osThreadAttr_t dataProcessingTaskAttributes;
 
-
-void data_processing_init(I2C_HandleTypeDef *i2c);
-void data_bmi_isr(void);
+void data_processing_init(void);
 void data_processing(void *arg);
-
-
 
 #ifdef __cplusplus
 }
 #endif
-#endif /* IMU_DATA_PROCESSING_TH_DATA_PROCESSING_TH_H_ */
+#endif /* IMU_DATA_PROCESSING_TH_ */

@@ -26,6 +26,7 @@
 #include "debug_log/debug_log.h"
 #include "i2c/i2c_helper.h"
 #include "data_processing_th/data_processing_th.h"
+#include "data_acquisition/data_acquisition_th.h"
 
 /* USER CODE END Includes */
 
@@ -109,9 +110,8 @@ int main(void)
   MX_I2C1_Init();
   /* USER CODE BEGIN 2 */
   debug_log_init(&huart2, LOG_LEVEL_INFO);
-  data_processing_init(&hi2c1);
-
-
+  data_aquisition_int(&hi2c1);
+  data_processing_init();
 
   /* USER CODE END 2 */
 
@@ -141,6 +141,7 @@ int main(void)
   /* USER CODE BEGIN RTOS_THREADS */
   /* add threads, ... */
   dataProcessingTaskHandle = osThreadNew(data_processing, NULL, &dataProcessingTaskAttributes);
+  dataAquisitionTaskHandle = osThreadNew(data_aquisition, NULL, &dataAquisitionTaskAttributes);
 
   /* USER CODE END RTOS_THREADS */
 

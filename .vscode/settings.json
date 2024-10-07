@@ -1,0 +1,11 @@
+{
+    "files.associations": {
+        "array": "cpp",
+        "string": "cpp",
+        "string_view": "cpp",
+        "debug_log.h": "c",
+        "i2c_helper.h": "c",
+        "data_acquisition_th.h": "c",
+        "data_processing_th.h": "c"
+    }
+}
